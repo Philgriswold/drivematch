@@ -1,0 +1,70 @@
+const elementIdArray = AAMVA_CODES
+    .map(id => id.elementId);
+
+function parseScannedData(data) {
+    const parsedData = {};
+    data.split("\n").forEach(str => {
+        if (elementIdArray.some(id => str.includes(id))) {
+            str = stripHeader(str);
+            const key = str.substring(0, 3);
+            parsedData[key] = str.substring(3).trim();
+        }
+    });
+
+    const dmData = getDrivematchData(parsedData);
+    return { parsedData, dmData };
+}
+
+function stripHeader(elementString) {
+    const idInString = elementIdArray
+        .find(id => elementString.includes(id));
+    return elementString.substring(elementString.indexOf(idInString));
+}
+
+function getDrivematchData(parsedData) {
+    const dmData = {};
+    const { DCA, DAR, DBB, DBA, DBD, DAC, DCT, DAA, DCS, DAG, DAI, DAK, DAQ, DCD, DAJ } = parsedData;
+
+    if (DCA) {
+        dmData.classification = DCA.slice(0, 1).toUpperCase();
+    } else if (DAR) {
+        dmData.classification = DAR.slice(0, 1).toUpperCase();
+    }
+
+    dmData.birthDate = moment(DBB, ['MMDDYYYY', 'YYYYMMDD']).format('MM/DD/YYYY');
+
+    dmData.expirationDate = moment(DBA, ['MMDDYYYY', 'YYYYMMDD']).format('MM/DD/YYYY');
+
+    dmData.issueDate = moment(DBD, ['MMDDYYYY', 'YYYYMMDD']).format('MM/DD/YYYY');
+
+    if (DAC) {
+        dmData.firstName = DAC.toUpperCase();
+    } else if (DCT) {
+        let DCTFirstName = DCT.split(",");
+        dmData.firstName = DCTFirstName[0].toUpperCase();
+    } else if (DAA) {
+        let DAAName = DAA.split(",");
+        dmData.firstName = DAAName[1].toUpperCase();
+        dmData.lastName = DAAName[0].toUpperCase();
+    }
+
+    if (DCS) {
+        dmData.lastName = DCS.toUpperCase();
+    }
+
+    dmData.street = DAG.toUpperCase();
+
+    dmData.city = DAI.toUpperCase();
+
+    dmData.state = DAJ.toUpperCase();
+
+    dmData.zip = DAK.slice(0, 5);
+
+    dmData.number = DAQ;
+
+    if (DCD && DCD !== "NONE") {
+        const endorsementArray = ["H", "N", "P", "S", "T", "X"];
+        dmData.endorsements = endorsementArray.filter(endorsement => DCD.includes(endorsement));
+    }
+    return dmData;
+}
